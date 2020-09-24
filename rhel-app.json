@@ -23,7 +23,7 @@
     "subscription_id": "{{user `subscription_id`}}",
 
     "managed_image_resource_group_name": "{{user `resource_group`}}",
-    "managed_image_name": "RHEL73-Rnd",
+    "managed_image_name": "RHEL73-APP",
     "os_type": "Linux",
 
     "shared_image_gallery": {
@@ -39,11 +39,11 @@
       "gallery_name": "{{user `gallery_name`}}",
       "image_name": "{{user `image_name`}}",
       "image_version": "1.0.0",
-      "replication_regions": ["East US"]
+      "replication_regions": ["West Europe"]
     },
 
     "azure_tags": {
-        "squat": "RND"
+        "squat": "APP"
     },
 
     "vm_size": "Standard_DS2_v2"
@@ -52,7 +52,7 @@
   "provisioners": [{
     "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
     "inline": [
-      "echo 'BaseImage+Rnd' > /usr/share/nginx/html/index.html",
+      "echo 'BaseImage+APP' > /usr/share/nginx/html/index.html",
       "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
     ],
     "inline_shebang": "/bin/sh -x",

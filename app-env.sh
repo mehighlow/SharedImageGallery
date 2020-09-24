@@ -19,9 +19,9 @@ export ARM_CLIENT_ID="<paste client id from the sp output here>"
 export ARM_SUBSCRIPTION_ID="<paste subscription id here>"
 export ARM_CLIENT_SECRET="<paste secret from sp output>"
 
-export ARM_RESOURCE_GROUP="rnd"
-export GALLERY_NAME="rndGallery"
-export IMAGE_NAME="Rhel-Rnd"
+export ARM_RESOURCE_GROUP="APP"
+export GALLERY_NAME="APPGallery"
+export IMAGE_NAME="Rhel-App"
 
 export BASE_IMAGE_SIG_RG="infra"
 export BASE_IMAGE_SIG="infraGallery"

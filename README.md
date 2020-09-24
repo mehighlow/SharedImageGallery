@@ -1,161 +1,115 @@
-# Azure Shared Image Gallery
-This setup covers the case when one department is responsible for the base image with hardening and tuning. Other departments of a company restricted to use the base image developing their own application, etc. 
+# Azure Shared Image Gallery for Organizations with Distributed IT Departments that Shares Common Default Image
+
+This architecture approach covers the case when an organization has several IT departments where one department(e.g. INFRA) is responsible
+for the base image(patches, hardening, tuning, and etc.), and other departments are restricted to use the base image developing their own applications.
+
+The concept is very similar to the containers approach where the basic image is used and any new modification is a layer.
 
 ![Azure SIG Architecture](AzureSharedImageGalleryAchitecture.png)
 
-
 # INFRA
-In this scenario INFRA department is responsible for base image hardening, tuning, etc. It creates a company-wide standard image to be used by other departments and stores it in Azure Shared Image Gallery.
+In this scenario, the INFRA department is responsible for the base image. It creates and stores in Azure Shared Image Gallery a company-wide default image with all hardening, tuning, and etc. that is used by other departments.
 
-### 1. Create infra RG
+INFRA department owns this default image and the APP department restricted to the read rights. So no one else can modify/delete the default image.
+
+### 1. Create INFRA RG
 ```bash
-infra_group_id=$(az group create -l eastus -n infra --query "id" -o tsv)
+infra_group_id=$(az group create -l westeurope -n INFRA --query "id" -o tsv)
 ```
 
-### 2. Create infra SP and save the output credentials
-Packer authenticates with Azure using a service principal(SP). We'll need this credentials later. Please, save the output.
+### 2. Create INFRA SP and save the output credentials
+Packer authenticates with Azure using a service principal(SP). We'll need these credentials later. Please, save the output.
 ```bash
-az ad sp create-for-rbac -n "infra" \
+az ad sp create-for-rbac -n "INFRA" \
 --role contributor \
 --scopes ${infra_group_id} \
---query "{ client_id: appId, client_secret: password, tenant_id: tenant }"
+--query "{ client_id: appId, client_secret: password }"
 ```
 
 ### 3. Get Subscription ID
 We'll need this id later. Please, save the output.
 ```bash
-az account show --query "id"
+az account show --query "{ subscription_id: id }"
 ```
 
-### 3. Create Shared Image Gallery
+### 3. Create INFRA Shared Image Gallery
 ```bash
-infra_sig_id=$(az sig create --resource-group infra --gallery-name infraGallery --query "id" -o tsv)
+infra_sig_id=$(az sig create --resource-group INFRA --gallery-name infraGallery --query "id" -o tsv)
 ```
 
 ### 5. Create image definition
 ```bash
-az sig image-definition create --resource-group "infra" --gallery-name "infraGallery" --gallery-image-definition "Rhel-Infra" --publisher "Infra" --offer "RHEL" --sku "7.3" --os-type "linux"
+az sig image-definition create --resource-group "INFRA" --gallery-name "infraGallery" --gallery-image-definition "Rhel-Infra" --publisher "Infra" --offer "RHEL" --sku "7.3" --os-type "linux"
 ```
 
-### 6. Create Packer template for infra
+### 6. Create a Packer template for infra
 See ```rhel-infra.json``` for reference
 
-### 7. Create ```rnd-env.sh``` with proper env variables
-```code
-#!/usr/local/bin/bash
+### 7. Create ```infra-env.sh``` with proper env variables
+See ```infra-env.sh``` for reference
 
-echo "Unset variables..."
-unset ARM_CLIENT_ID
-unset ARM_CLIENT_SECRET
-unset ARM_SUBSCRIPTION_ID
-
-unset ARM_RESOURCE_GROUP
-unset GALLERY_NAME
-unset IMAGE_NAME
-
-
-echo "Set variables..."
-export ARM_CLIENT_ID="<paste client id from the sp output here>"
-export ARM_SUBSCRIPTION_ID="<paste subscription id here>"
-export ARM_CLIENT_SECRET="<paste secret from sp output>"
-
-export ARM_RESOURCE_GROUP="infra"
-export GALLERY_NAME="infraGallery"
-export IMAGE_NAME="Rhel-Infra"
-
-```
-```bash
-chmod +x rnd-env.sh
+```bash 
+chmod +x infra-env.sh
 ```
 
 ### 8. Source env variables and run packer
 ```bash
 . ./infra-env.sh && packer build rhel-infra.json
 ```
+Under the hood, Packer creates a set of temporary assets in the INFRA RG (this can be changed to the usage of the pre-defined RG), creates a VM based on the RHEL image, applies configuration change.
 
+# APP
+The APP department develops an application. Company policies prohibit usage of any other images and restrict usage to the approved INFRA default image only.
 
-# RND
-In this scenario, RND department develops an application. Company policies restrict usage of any other images rather than approved INFRA image.
-
-### 1. Create RND RG
+### 1. Create APP RG
 ```bash
-rnd_group_id=$(az group create -l eastus -n rnd --query "id" -o tsv)
+app_group_id=$(az group create -l westeurope -n APP --query "id" -o tsv)
 ```
 
-### 2. Create RND SP and save the output credentials
-Packer authenticates with Azure using a service principal(SP). We'll need this credentials later. Please, save the output.
+### 2. Create APP SP and save the output credentials
+Packer authenticates in Azure using a service principal(SP). We'll need these credentials later. Please, save the output.
 ```bash
-az ad sp create-for-rbac -n "rnd" \
+az ad sp create-for-rbac -n "APP" \
 --role contributor \
---scopes ${rnd_group_id} \
---query "{ client_id: appId, client_secret: password, tenant_id: tenant }"
+--scopes ${app_group_id} \
+--query "{ client_id: appId, client_secret: password }"
 ```
-### 3. Assign RND SP 'Reader' role for Infra Shared Image Gallery 
+### 3. Assign APP SP 'Reader' role for Infra Shared Image Gallery 
 ```bash
-az ad sp create-for-rbac -n "rnd" \
+az ad sp create-for-rbac -n "APP" \
 --role reader --scopes ${infra_sig_id}
 ```
 
 ### 3. Get Subscription ID
 We'll need this id later. Please, save the output.
 ```bash
-az account show --query "id"
+az account show --query "{ subscription_id: id }"
 ```
 
-### 3. Create RND Shared Image Gallery
+### 3. Create APP Shared Image Gallery
 ```bash
-az sig create --resource-group rnd --gallery-name rndGallery
+az sig create --resource-group APP --gallery-name APPGallery
 ```
 
 ### 5. Create image definition
 ```bash
-az sig image-definition create --resource-group "rnd" --gallery-name "rndGallery" --gallery-image-definition "Rhel-Rnd" --publisher "RND" --offer "RHEL" --sku "7.3" --os-type "linux"
+az sig image-definition create --resource-group "APP" --gallery-name "APPGallery" --gallery-image-definition "Rhel-APP" --publisher "APP" --offer "RHEL" --sku "7.3" --os-type "linux"
 ```
 
-### 6. Create Packer template for RND
-See ```rhel-rdn.json``` for reference
+### 6. Create a Packer template for APP
+See ```rhel-app.json``` for reference
 
-### 7. Create ```rnd-env.sh``` with proper env variables
-```code
-#!/usr/local/bin/bash
-
-echo "Unset variables..."
-unset ARM_CLIENT_ID
-unset ARM_CLIENT_SECRET
-unset ARM_SUBSCRIPTION_ID
-
-unset ARM_RESOURCE_GROUP
-unset GALLERY_NAME
-unset IMAGE_NAME
-
-unset BASE_IMAGE_SIG_RG
-unset BASE_IMAGE_SIG
-unset BASE_IMAGE_NAME
-unset BASE_IMAGE_VER
-
-echo "Set variables..."
-export ARM_CLIENT_ID="<paste client id from the sp output here>"
-export ARM_SUBSCRIPTION_ID="<paste subscription id here>"
-export ARM_CLIENT_SECRET="<paste secret from sp output>"
-
-export ARM_RESOURCE_GROUP="rnd"
-export GALLERY_NAME="rndGallery"
-export IMAGE_NAME="Rhel-Rnd"
-
-export BASE_IMAGE_SIG_RG="infra"
-export BASE_IMAGE_SIG="infraGallery"
-export BASE_IMAGE_NAME="Rhel-Infra"
-export BASE_IMAGE_VER="1.0.0"
-```
+### 7. Create ```app-env.sh``` with proper env variables
+See ```app-env.sh``` for reference
 ```bash
-chmod +x rnd-env.sh
+chmod +x 'app-env.sh'
 ```
 
 ### 8. Source env variables and run packer
 ```bash
-. ./rnd-env.sh && packer build rhel-rnd.json
+. ./app-env.sh && packer build rhel-app.json
 ```
-
+Under the hood, Packer creates a set of temporary assets in APP RG (this can be changed to the usage of the pre-defined RG), creates a VM based on the default INFRA base image, applies configuration change.
 
 # Useful links
 * https://www.packer.io/docs/builders/azure/arm

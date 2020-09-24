@@ -15,6 +15,6 @@ export ARM_CLIENT_ID="<paste client id from the sp output here>"
 export ARM_SUBSCRIPTION_ID="<paste subscription id here>"
 export ARM_CLIENT_SECRET="<paste secret from sp output>"
 
-export ARM_RESOURCE_GROUP="infra"
+export ARM_RESOURCE_GROUP="INFRA"
 export GALLERY_NAME="infraGallery"
 export IMAGE_NAME="Rhel-Infra"
