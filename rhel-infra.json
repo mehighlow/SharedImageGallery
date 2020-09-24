@@ -52,8 +52,8 @@
       "yum install -y nginx",
       "systemctl enable nginx",
       "systemctl restart nginx",
-      "iptables -F",
-      "iptables-save",
+      "firewall-cmd --zone=public --add-port=80/tcp --permanent",
+      "firewall-cmd --reload",
       "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
     ],
     "inline_shebang": "/bin/sh -x",
