@@ -111,6 +111,9 @@ chmod +x 'app-env.sh'
 ```
 Under the hood, Packer creates a set of temporary assets in APP RG (this can be changed to the usage of the pre-defined RG), creates a VM based on the default INFRA base image, applies configuration change.
 
+# Verify
+Create 2 VMs using the default INFRA image and the APP image correspondently. Open your web browser and reach the web page using public IP addresses of the machines you've created. Observe the results. 
+
 # Useful links
 * https://www.packer.io/docs/builders/azure/arm
 * https://github.com/hashicorp/packer/blob/master/examples/azure/
